@@ -1,11 +1,11 @@
 {
-    "name": "my_app",
-    "short_name": "my_app",
+    "name": "РЕХА SUPPLY",
+    "short_name": "РЕХА SUPPLY",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#4CAF50",
+    "theme_color": "#4CAF50",
+    "description": "РЕХА SUPPLY - Засвар үйлчилгээний систем",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

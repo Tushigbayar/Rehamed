@@ -14,15 +14,18 @@ class HospitalApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'РЕХА МЕД - Засвар үйлчилгээний систем',
+      title: 'РЕХА SUPPLY - Засвар үйлчилгээний систем',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4CAF50), // Ногоон өнгө
+          seedColor: LogoColors.green, // Логоны ногоон өнгө
           brightness: Brightness.light,
         ),
         useMaterial3: true,
         fontFamily: 'Roboto',
+        // Homescreen өнгө тохируулах
+        primaryColor: LogoColors.green,
+        scaffoldBackgroundColor: Colors.white,
       ),
       home: const AuthWrapper(),
     );
@@ -62,8 +65,26 @@ class RehaMedLogo extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(
-        painter: LogoPainter(),
+      child: Stack(
+        children: [
+          // Custom painted logo as background
+          CustomPaint(
+            painter: LogoPainter(),
+          ),
+          // Image on top
+          Center(
+            child: Image.asset(
+              'img/logo-removebg-preview.png',
+              width: size * 0.8,
+              height: size * 0.8,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                // Хэрэв зураг олдохгүй бол хоосон widget
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
