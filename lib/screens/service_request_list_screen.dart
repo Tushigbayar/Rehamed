@@ -24,16 +24,14 @@ class _ServiceRequestListScreenState extends State<ServiceRequestListScreen> {
     setState(() {});
   }
 
-  List<ServiceRequest> get _filteredRequests {
-    final requests = ServiceRequestService.getRequests();
+  Future<List<ServiceRequest>> _getFilteredRequests() async {
+    final requests = await ServiceRequestService.getRequests();
     if (_filterStatus == null) return requests;
     return requests.where((r) => r.status == _filterStatus).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final requests = _filteredRequests;
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -61,22 +59,35 @@ class _ServiceRequestListScreenState extends State<ServiceRequestListScreen> {
             ),
           ),
           Expanded(
-            child: requests.isEmpty
-                ? const Center(
+            child: FutureBuilder<List<ServiceRequest>>(
+              future: _getFilteredRequests(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                final requests = snapshot.data ?? [];
+                
+                if (requests.isEmpty) {
+                  return const Center(
                     child: Text('Дуудлага олдсонгүй'),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () async {
-                      _refresh();
+                  );
+                }
+                
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    _refresh();
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: requests.length,
+                    itemBuilder: (context, index) {
+                      return _buildRequestCard(context, requests[index]);
                     },
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: requests.length,
-                      itemBuilder: (context, index) {
-                        return _buildRequestCard(context, requests[index]);
-                      },
-                    ),
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),

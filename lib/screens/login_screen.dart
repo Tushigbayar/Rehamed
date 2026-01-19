@@ -30,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
-      final success = await AuthService.login(
+      final result = await AuthService.login(
         _usernameController.text,
         _passwordController.text,
       );
@@ -39,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = false;
       });
 
-      if (success) {
+      if (result['success'] == true) {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -48,8 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Нэвтрэх нэр эсвэл нууц үг буруу байна'),
+            SnackBar(
+              content: Text(result['error'] ?? 'Нэвтрэх нэр эсвэл нууц үг буруу байна'),
               backgroundColor: Colors.red,
             ),
           );

@@ -38,7 +38,13 @@ class _ServiceRequestEditScreenState extends State<ServiceRequestEditScreen> {
     _images.addAll(widget.request.images ?? []);
     
     if (widget.request.assignedTo != null) {
-      _selectedTechnician = TechnicianService.getTechnicianById(widget.request.assignedTo!);
+      TechnicianService.getTechnicianById(widget.request.assignedTo!).then((tech) {
+        if (mounted) {
+          setState(() {
+            _selectedTechnician = tech;
+          });
+        }
+      });
     }
   }
 
@@ -114,7 +120,7 @@ class _ServiceRequestEditScreenState extends State<ServiceRequestEditScreen> {
     }
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
     final updatedRequest = ServiceRequest(
       id: widget.request.id,
       userId: widget.request.userId,
@@ -146,23 +152,34 @@ class _ServiceRequestEditScreenState extends State<ServiceRequestEditScreen> {
           : null,
     );
 
-    ServiceRequestService.updateRequest(updatedRequest);
+    final result = await ServiceRequestService.updateRequest(updatedRequest);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Амжилттай хадгалагдлаа'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    Navigator.pop(context, true);
+    if (result['success'] == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Амжилттай хадгалагдлаа'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context, true);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['error'] ?? 'Алдаа гарлаа'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final technicians = TechnicianService.getTechnicians();
-
-    return Scaffold(
+    return FutureBuilder<List<Technician>>(
+      future: TechnicianService.getTechnicians(),
+      builder: (context, techniciansSnapshot) {
+        final technicians = techniciansSnapshot.data ?? [];
+        
+        return Scaffold(
       appBar: AppBar(
         title: const Text('Дуудлага засах'),
         backgroundColor: LogoColors.blue,
@@ -460,6 +477,8 @@ class _ServiceRequestEditScreenState extends State<ServiceRequestEditScreen> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/service_request.dart';
 import '../services/service_request_service.dart';
-import '../services/auth_service.dart';
 import '../main.dart';
 
 class ServiceRequestFormScreen extends StatefulWidget {
@@ -35,32 +34,65 @@ class _ServiceRequestFormScreenState extends State<ServiceRequestFormScreen> {
     super.dispose();
   }
 
-  void _submitRequest() {
+  Future<void> _submitRequest() async {
     if (_formKey.currentState!.validate()) {
-      final request = ServiceRequest(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: AuthService.currentUserId!,
-        type: _selectedType,
-        title: _titleController.text,
-        description: _descriptionController.text,
-        location: _locationController.text,
-        status: ServiceRequestStatus.pending,
-        requestedAt: DateTime.now(),
-        isUrgent: _isUrgent,
-      );
-
-      ServiceRequestService.addRequest(request);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_isUrgent 
-            ? 'Яаралтай дуудлага амжилттай илгээгдлээ!' 
-            : 'Дуудлага амжилттай илгээгдлээ!'),
-          backgroundColor: LogoColors.green,
+      // Loading indicator харуулах
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
         ),
       );
 
-      Navigator.pop(context, true);
+      try {
+        final result = await ServiceRequestService.createRequest(
+          type: _selectedType,
+          title: _titleController.text,
+          description: _descriptionController.text,
+          location: _locationController.text,
+          isUrgent: _isUrgent,
+        );
+
+        // Loading dialog хаах
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
+
+        if (result['success'] == true && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_isUrgent 
+                ? 'Яаралтай дуудлага амжилттай илгээгдлээ!' 
+                : 'Дуудлага амжилттай илгээгдлээ!'),
+              backgroundColor: LogoColors.green,
+            ),
+          );
+
+          Navigator.pop(context, true);
+        } else if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['error'] ?? 'Дуудлага илгээхэд алдаа гарлаа'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        // Loading dialog хаах
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Алдаа гарлаа: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 

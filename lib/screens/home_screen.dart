@@ -77,29 +77,43 @@ class _HomeTab extends StatefulWidget {
 class _HomeTabState extends State<_HomeTab> {
   @override
   Widget build(BuildContext context) {
-    final requests = ServiceRequestService.getRequests();
-    final pendingRequests = requests.where((r) => r.status == ServiceRequestStatus.pending).length;
-    final inProgressRequests = requests.where((r) => r.status == ServiceRequestStatus.inProgress).length;
-    final completedRequests = requests.where((r) => r.status == ServiceRequestStatus.completed).length;
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              const SizedBox(height: 20),
-              _buildStats(context, pendingRequests, inProgressRequests, completedRequests),
-              const SizedBox(height: 20),
-              _buildAnnouncements(context),
-              const SizedBox(height: 20),
-              _buildQuickActions(context),
-              const SizedBox(height: 20),
-              _buildRecentRequests(context, requests),
-            ],
-          ),
+        child: FutureBuilder<List<ServiceRequest>>(
+          future: ServiceRequestService.getRequests(),
+          builder: (context, requestsSnapshot) {
+            if (requestsSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final requests = requestsSnapshot.data ?? [];
+            final pendingRequests = requests.where((r) => r.status == ServiceRequestStatus.pending).length;
+            final inProgressRequests = requests.where((r) => r.status == ServiceRequestStatus.inProgress).length;
+            final completedRequests = requests.where((r) => r.status == ServiceRequestStatus.completed).length;
+
+            return RefreshIndicator(
+              onRefresh: () async {
+                setState(() {});
+              },
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context),
+                    const SizedBox(height: 20),
+                    _buildStats(context, pendingRequests, inProgressRequests, completedRequests),
+                    const SizedBox(height: 20),
+                    _buildAnnouncements(context),
+                    const SizedBox(height: 20),
+                    _buildQuickActions(context),
+                    const SizedBox(height: 20),
+                    _buildRecentRequests(context, requests),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -257,8 +271,6 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Widget _buildAnnouncements(BuildContext context) {
-    final announcements = AnnouncementService.getRecentAnnouncements(limit: 3);
-    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -283,22 +295,36 @@ class _HomeTabState extends State<_HomeTab> {
             ],
           ),
           const SizedBox(height: 12),
-          if (announcements.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Center(
-                child: Text(
-                  'Мэдээ байхгүй',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            )
-          else
-            ...announcements.map((announcement) => _buildAnnouncementCard(context, announcement)),
+          FutureBuilder<List<Announcement>>(
+            future: AnnouncementService.getRecentAnnouncements(limit: 3),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              final announcements = snapshot.data ?? [];
+              
+              if (announcements.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Мэдээ байхгүй',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                );
+              }
+              
+              return Column(
+                children: announcements.map((announcement) => _buildAnnouncementCard(context, announcement)).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -471,8 +497,6 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   void _showAllAnnouncements(BuildContext context) {
-    final allAnnouncements = AnnouncementService.getAnnouncements();
-    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -513,12 +537,23 @@ class _HomeTabState extends State<_HomeTab> {
                   ),
                 ),
                 Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: allAnnouncements.length,
-                    itemBuilder: (context, index) {
-                      return _buildAnnouncementCard(context, allAnnouncements[index]);
+                  child: FutureBuilder<List<Announcement>>(
+                    future: AnnouncementService.getAnnouncements(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      
+                      final allAnnouncements = snapshot.data ?? [];
+                      
+                      return ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: allAnnouncements.length,
+                        itemBuilder: (context, index) {
+                          return _buildAnnouncementCard(context, allAnnouncements[index]);
+                        },
+                      );
                     },
                   ),
                 ),

@@ -20,41 +20,58 @@ class ServiceRequestDetailScreen extends StatefulWidget {
 class _ServiceRequestDetailScreenState extends State<ServiceRequestDetailScreen> {
   @override
   Widget build(BuildContext context) {
-    final request = ServiceRequestService.getRequestById(widget.requestId);
-    
-    if (request == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Алдаа')),
-        body: const Center(child: Text('Дуудлага олдсонгүй')),
-      );
-    }
+    return FutureBuilder<ServiceRequest?>(
+      future: ServiceRequestService.getRequestById(widget.requestId),
+      builder: (context, requestSnapshot) {
+        if (requestSnapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Дуудлагын дэлгэрэнгүй'),
+              backgroundColor: LogoColors.blue,
+              foregroundColor: Colors.white,
+            ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        final request = requestSnapshot.data;
+        
+        if (request == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Алдаа')),
+            body: const Center(child: Text('Дуудлага олдсонгүй')),
+          );
+        }
 
-    Color statusColor;
-    IconData statusIcon;
-    
-    switch (request.status) {
-      case ServiceRequestStatus.pending:
-        statusColor = LogoColors.amber;
-        statusIcon = Icons.pending;
-        break;
-      case ServiceRequestStatus.accepted:
-      case ServiceRequestStatus.inProgress:
-        statusColor = LogoColors.blue;
-        statusIcon = Icons.work;
-        break;
-      case ServiceRequestStatus.completed:
-        statusColor = LogoColors.green;
-        statusIcon = Icons.check_circle;
-        break;
-      case ServiceRequestStatus.cancelled:
-        statusColor = LogoColors.red;
-        statusIcon = Icons.cancel;
-        break;
-    }
+        Color statusColor;
+        IconData statusIcon;
+        
+        switch (request.status) {
+          case ServiceRequestStatus.pending:
+            statusColor = LogoColors.amber;
+            statusIcon = Icons.pending;
+            break;
+          case ServiceRequestStatus.accepted:
+          case ServiceRequestStatus.inProgress:
+            statusColor = LogoColors.blue;
+            statusIcon = Icons.work;
+            break;
+          case ServiceRequestStatus.completed:
+            statusColor = LogoColors.green;
+            statusIcon = Icons.check_circle;
+            break;
+          case ServiceRequestStatus.cancelled:
+            statusColor = LogoColors.red;
+            statusIcon = Icons.cancel;
+            break;
+        }
 
-    final technician = request.assignedTo != null
-        ? TechnicianService.getTechnicianById(request.assignedTo!)
-        : null;
+        return FutureBuilder<Technician?>(
+          future: request.assignedTo != null
+              ? TechnicianService.getTechnicianById(request.assignedTo!)
+              : Future.value(null),
+          builder: (context, technicianSnapshot) {
+            final technician = technicianSnapshot.data;
 
     return Scaffold(
       appBar: AppBar(
@@ -458,6 +475,10 @@ class _ServiceRequestDetailScreenState extends State<ServiceRequestDetailScreen>
           ],
         ),
       ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -519,7 +540,7 @@ class _ServiceRequestDetailScreenState extends State<ServiceRequestDetailScreen>
     );
   }
 
-  void _showStatusChangeDialog(BuildContext context, ServiceRequest request) {
+  void _showStatusChangeDialog(BuildContext context, ServiceRequest request) async {
     ServiceRequestStatus selectedStatus = request.status;
     
     showDialog(
@@ -575,7 +596,7 @@ class _ServiceRequestDetailScreenState extends State<ServiceRequestDetailScreen>
               child: const Text('Цуцлах'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (selectedStatus != request.status) {
                   final updatedRequest = ServiceRequest(
                     id: request.id,
@@ -600,9 +621,11 @@ class _ServiceRequestDetailScreenState extends State<ServiceRequestDetailScreen>
                     scheduledTime: request.scheduledTime,
                   );
                   
-                  ServiceRequestService.updateRequest(updatedRequest);
+                  await ServiceRequestService.updateRequest(updatedRequest);
                   
-                  setState(() {});
+                  if (context.mounted) {
+                    setState(() {});
+                  }
                   
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -625,10 +648,10 @@ class _ServiceRequestDetailScreenState extends State<ServiceRequestDetailScreen>
     );
   }
 
-  void _showTechnicianMentionDialog(BuildContext context, ServiceRequest request) {
-    final technicians = TechnicianService.getTechnicians();
+  void _showTechnicianMentionDialog(BuildContext context, ServiceRequest request) async {
+    final technicians = await TechnicianService.getTechnicians();
     Technician? selectedTechnician = request.assignedTo != null
-        ? TechnicianService.getTechnicianById(request.assignedTo!)
+        ? await TechnicianService.getTechnicianById(request.assignedTo!)
         : null;
     
     showDialog(
@@ -675,7 +698,7 @@ class _ServiceRequestDetailScreenState extends State<ServiceRequestDetailScreen>
               child: const Text('Цуцлах'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final updatedRequest = ServiceRequest(
                   id: request.id,
                   userId: request.userId,
@@ -695,9 +718,11 @@ class _ServiceRequestDetailScreenState extends State<ServiceRequestDetailScreen>
                   scheduledTime: request.scheduledTime,
                 );
                 
-                ServiceRequestService.updateRequest(updatedRequest);
+                await ServiceRequestService.updateRequest(updatedRequest);
                 
-                setState(() {});
+                if (context.mounted) {
+                  setState(() {});
+                }
                 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
