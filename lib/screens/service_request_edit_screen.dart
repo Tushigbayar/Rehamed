@@ -177,7 +177,13 @@ class _ServiceRequestEditScreenState extends State<ServiceRequestEditScreen> {
     return FutureBuilder<List<Technician>>(
       future: TechnicianService.getTechnicians(),
       builder: (context, techniciansSnapshot) {
-        final technicians = techniciansSnapshot.data ?? [];
+        List<Technician> technicians = techniciansSnapshot.data ?? [];
+        
+        // Ensure selected technician is in the list if it exists
+        if (_selectedTechnician != null && 
+            !technicians.any((tech) => tech.id == _selectedTechnician!.id)) {
+          technicians = [...technicians, _selectedTechnician!];
+        }
         
         return Scaffold(
       appBar: AppBar(
@@ -262,12 +268,18 @@ class _ServiceRequestEditScreenState extends State<ServiceRequestEditScreen> {
                       labelText: 'Засварчин сонгох',
                       border: OutlineInputBorder(),
                     ),
-                    items: technicians.map((tech) {
-                      return DropdownMenuItem<Technician>(
-                        value: tech,
-                        child: Text('${tech.name} - ${tech.specialization}'),
-                      );
-                    }).toList(),
+                    items: [
+                      const DropdownMenuItem<Technician>(
+                        value: null,
+                        child: Text('Засварчин сонгохгүй'),
+                      ),
+                      ...technicians.map((tech) {
+                        return DropdownMenuItem<Technician>(
+                          value: tech,
+                          child: Text('${tech.name} - ${tech.specialization}'),
+                        );
+                      }),
+                    ],
                     onChanged: (value) {
                       setState(() {
                         _selectedTechnician = value;

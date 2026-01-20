@@ -21,6 +21,7 @@ app.use('/api/auth', require('./routes/auth')); // Нэвтрэх, бүртгү�
 app.use('/api/service-requests', require('./routes/serviceRequests')); // Үйлчилгээний хүсэлтүүдийн endpoint-ууд
 app.use('/api/technicians', require('./routes/technicians')); // Засварчдын endpoint-ууд
 app.use('/api/announcements', require('./routes/announcements')); // Мэдэгдлийн endpoint-ууд
+app.use('/api/notifications', require('./routes/notifications')); // Notification-ийн endpoint-ууд
 
 // Health check - серверийн эрүүл мэндийг шалгах endpoint
 app.get('/api/health', (req, res) => {

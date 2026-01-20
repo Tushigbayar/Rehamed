@@ -119,7 +119,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 // Токен шалгах middleware - бусад route-уудад ашиглана
 function authenticateToken(req, res, next) {
   // Authorization header-оос токенийг авах
-  const authHeader = req.headers['authorization'];
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" форматаас токенийг салгах
 
   if (!token) {

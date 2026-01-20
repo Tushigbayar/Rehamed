@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import '../models/service_request.dart';
 import '../services/service_request_service.dart';
 import '../main.dart';
@@ -38,6 +40,13 @@ class _ServiceRequestListScreenState extends State<ServiceRequestListScreen> {
         title: const Text('Миний дуудлагууд'),
         backgroundColor: LogoColors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Тайлан татаж авах',
+            onPressed: _showExportDialog,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -122,6 +131,363 @@ class _ServiceRequestListScreenState extends State<ServiceRequestListScreen> {
       selectedColor: LogoColors.blue.withOpacity(0.2),
       checkmarkColor: LogoColors.blue,
     );
+  }
+
+  Future<void> _showExportDialog() async {
+    final now = DateTime.now();
+    int? selectedYear;
+    int? selectedMonth;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Тайлан татаж авах'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Он сар сонгоно уу:'),
+              const SizedBox(height: 16),
+              // Он сонгох
+              DropdownButtonFormField<int>(
+                decoration: const InputDecoration(
+                  labelText: 'Он',
+                  border: OutlineInputBorder(),
+                ),
+                value: selectedYear ?? now.year,
+                items: List.generate(5, (index) {
+                  final year = now.year - index;
+                  return DropdownMenuItem(
+                    value: year,
+                    child: Text(year.toString()),
+                  );
+                }),
+                onChanged: (value) {
+                  setDialogState(() {
+                    selectedYear = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              // Сар сонгох
+              DropdownButtonFormField<int>(
+                decoration: const InputDecoration(
+                  labelText: 'Сар',
+                  border: OutlineInputBorder(),
+                ),
+                value: selectedMonth ?? now.month,
+                items: List.generate(12, (index) {
+                  final month = index + 1;
+                  return DropdownMenuItem(
+                    value: month,
+                    child: Text(month.toString()),
+                  );
+                }),
+                onChanged: (value) {
+                  setDialogState(() {
+                    selectedMonth = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Цуцлах'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _exportReport(selectedYear ?? now.year, selectedMonth ?? now.month);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: LogoColors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Татаж авах'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportReport(int year, int month) async {
+    // Loading indicator харуулах
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final result = await ServiceRequestService.exportReport(
+        year: year,
+        month: month,
+      );
+
+      if (!context.mounted) return;
+      
+      // Loading dialog хаах
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (result['success'] == true) {
+        // CSV өгөгдөл файл болгон хадгалах
+        final csvData = result['csvData'] as List<int>;
+        
+        // Download folder олох - platform-аас хамаарч
+        Directory? directory;
+        try {
+          if (Platform.isAndroid) {
+            // Android дээр Downloads folder олох
+            try {
+              final externalDir = await getExternalStorageDirectory();
+              if (externalDir != null) {
+                try {
+                  // Android/data/com.example.app/files дээр
+                  final downloadDir = Directory('${externalDir.path.split('/Android')[0]}/Download');
+                  if (await downloadDir.exists()) {
+                    directory = downloadDir;
+                  } else {
+                    directory = externalDir;
+                  }
+                } catch (e) {
+                  directory = externalDir;
+                }
+              }
+            } catch (e) {
+              // getExternalStorageDirectory() алдаа гарвал getApplicationDocumentsDirectory() ашиглах
+              try {
+                directory = await getApplicationDocumentsDirectory();
+              } catch (e2) {
+                // Алдаа гарвал null үлдэнэ
+              }
+            }
+          } else if (Platform.isIOS) {
+            // iOS дээр documents directory ашиглах
+            try {
+              directory = await getApplicationDocumentsDirectory();
+            } catch (e) {
+              // Алдаа гарвал null үлдэнэ
+            }
+          } else if (Platform.isWindows) {
+            // Windows дээр documents directory ашиглах
+            try {
+              directory = await getApplicationDocumentsDirectory();
+            } catch (e) {
+              // Windows дээр алдаа гарвал Downloads folder ашиглах
+              try {
+                final userProfile = Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? '';
+                if (userProfile.isNotEmpty) {
+                  directory = Directory('$userProfile\\Downloads');
+                }
+              } catch (e2) {
+                // Алдаа гарвал null үлдэнэ
+              }
+            }
+          } else {
+            // Бусад platform дээр documents directory ашиглах
+            try {
+              directory = await getApplicationDocumentsDirectory();
+            } catch (e) {
+              // Алдаа гарвал null үлдэнэ
+            }
+          }
+          
+          // Хэрэв directory олдохгүй бол documents directory ашиглах (сүүлийн оролдлого)
+          if (directory == null) {
+            try {
+              directory = await getApplicationDocumentsDirectory();
+            } catch (e) {
+              // Бүх оролдлого амжилтгүй болсон
+            }
+          }
+          
+          // Directory байгаа эсэхийг шалгах
+          if (directory == null) {
+            if (!context.mounted) return;
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(Icons.error, color: Colors.red, size: 28),
+                    SizedBox(width: 8),
+                    Text('Алдаа', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                content: Text('Файл хадгалах хавтас олдсонгүй.\nPlatform: ${Platform.operatingSystem}'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Ойлголоо'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
+          
+          // Directory үүсгэх (хэрэв байхгүй бол)
+          if (!await directory.exists()) {
+            await directory.create(recursive: true);
+          }
+
+          // Файл нэр үүсгэх
+          final fileName = 'duudlagiin_tailan_${year}_${month.toString().padLeft(2, '0')}.csv';
+          final filePath = '${directory.path}/$fileName';
+          
+          // Файл бичих
+          final file = File(filePath);
+          await file.writeAsBytes(csvData);
+
+          if (!context.mounted) return;
+          
+          // Android дээр Download folder-д хадгалагдсан эсэхийг шалгах
+          final isDownloadFolder = directory.path.contains('/Download') || directory.path.contains('/download');
+          final folderName = isDownloadFolder ? 'Download' : 'App Documents';
+          
+          // Alert dialog харуулах
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.check_circle, color: LogoColors.green, size: 28),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Амжилттай!',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Тайлан файл амжилттай татагдлаа.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.insert_drive_file, size: 16, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Файл: $fileName',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.folder, size: 16, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Хавтас: $folderName'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Ойлголоо'),
+                ),
+              ],
+            ),
+          );
+        } catch (e) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Файл хадгалахад алдаа гарлаа: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        if (!context.mounted) return;
+        
+        // Алдааны alert dialog харуулах
+        final errorMessage = result['error'] ?? 'Тайлан татахад алдаа гарлаа';
+        
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  result['requiresLogin'] == true ? Icons.warning : Icons.error,
+                  color: result['requiresLogin'] == true ? Colors.orange : Colors.red,
+                  size: 28,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    result['requiresLogin'] == true ? 'Анхааруулга' : 'Алдаа',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Ойлголоо'),
+              ),
+              if (result['requiresLogin'] == true)
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Login screen рүү шилжүүлэх (хэрэв шаардлагатай бол)
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LogoColors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Нэвтрэх'),
+                ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context); // Loading dialog хаах
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Алдаа гарлаа: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildRequestCard(BuildContext context, ServiceRequest request) {

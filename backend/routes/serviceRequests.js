@@ -4,6 +4,9 @@
 const express = require('express');
 const router = express.Router();
 const ServiceRequest = require('../models/ServiceRequest');
+const Notification = require('../models/Notification');
+const Technician = require('../models/Technician');
+const User = require('../models/User');
 const { authenticateToken } = require('./auth'); // Токен шалгах middleware
 
 // Бүх үйлчилгээний хүсэлтүүдийг авах endpoint
@@ -130,7 +133,43 @@ router.put('/:id', authenticateToken, async (req, res) => {
         request.completedAt = new Date();
       }
     }
-    if (assignedTo !== undefined) request.assignedTo = assignedTo;
+    // Засварчин томилогдох үед notification илгээх
+    const previousAssignedTo = request.assignedTo ? request.assignedTo.toString() : null;
+    if (assignedTo !== undefined) {
+      request.assignedTo = assignedTo;
+      
+      // Засварчин шинээр томилогдсон эсэхийг шалгах
+      if (assignedTo && assignedTo !== previousAssignedTo) {
+        try {
+          const technician = await Technician.findById(assignedTo);
+          if (technician) {
+            // Засварчтай холбоотой хэрэглэгчийн дансыг олох (technician role бүхий)
+            const technicianUser = await User.findOne({ 
+              role: 'technician',
+              name: technician.name 
+            }).or([
+              { email: technician.email }
+            ]);
+
+            // Хэрэв technician user олдвол notification үүсгэх
+            if (technicianUser) {
+              const notification = new Notification({
+                userId: technicianUser._id,
+                technicianId: assignedTo,
+                serviceRequestId: request._id,
+                title: 'Шинэ засварын ажил томилогдлоо',
+                message: `Та "${request.title}" засварын ажилд томилогдлоо. Байршил: ${request.location}`,
+                type: 'assignment'
+              });
+              await notification.save();
+            }
+          }
+        } catch (notificationError) {
+          // Notification илгээхэд алдаа гарвал үндсэн процесс үргэлжлүүлнэ
+          console.error('Error creating notification:', notificationError);
+        }
+      }
+    }
     if (notes !== undefined) request.notes = notes;
     if (images !== undefined) request.images = images;
     if (isUrgent !== undefined) request.isUrgent = isUrgent;
@@ -188,6 +227,72 @@ router.get('/status/:status', authenticateToken, async (req, res) => {
     res.json(requests);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch requests', message: error.message });
+  }
+});
+
+// Тайлан авах endpoint (он сараар шүүх, CSV форматаар буцаах)
+router.get('/report/export', authenticateToken, async (req, res) => {
+  try {
+    const { year, month } = req.query;
+    
+    // Огноо шүүх query үүсгэх
+    let dateQuery = {};
+    if (year && month) {
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+      const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+      dateQuery.requestedAt = {
+        $gte: startDate,
+        $lte: endDate
+      };
+    }
+    
+    // Админ биш бол зөвхөн өөрийн хүсэлтүүдийг харуулах
+    const query = req.user.role === 'admin' ? dateQuery : { ...dateQuery, userId: req.user.userId };
+
+    const requests = await ServiceRequest.find(query)
+      .populate('userId', 'name username')
+      .populate('assignedTo', 'name specialization phone')
+      .sort({ requestedAt: -1 });
+
+    // CSV мөрүүд үүсгэх
+    const csvRows = [];
+    
+    // CSV header (Монгол хэл дээр)
+    csvRows.push('ID,Төрөл,Гарчиг,Тайлбар,Байршил,Статус,Хүсэлт гаргасан огноо,Хүлээн авсан огноо,Дууссан огноо,Хэрэглэгч,Засварчин,Тэмдэглэл,Яаралтай,Төлөвлөсөн огноо,Төлөвлөсөн цаг');
+    
+    // Өгөгдөл
+    requests.forEach(request => {
+      const row = [
+        request._id || '',
+        request.type || '',
+        (request.title || '').replace(/,/g, ';').replace(/\n/g, ' ').replace(/"/g, '""'),
+        (request.description || '').replace(/,/g, ';').replace(/\n/g, ' ').replace(/"/g, '""'),
+        (request.location || '').replace(/,/g, ';').replace(/"/g, '""'),
+        request.status || '',
+        request.requestedAt ? new Date(request.requestedAt).toISOString() : '',
+        request.acceptedAt ? new Date(request.acceptedAt).toISOString() : '',
+        request.completedAt ? new Date(request.completedAt).toISOString() : '',
+        request.userId?.name || request.userId?.username || '',
+        request.assignedTo ? `${request.assignedTo.name} (${request.assignedTo.specialization})` : '',
+        (request.notes || '').replace(/,/g, ';').replace(/\n/g, ' ').replace(/"/g, '""'),
+        request.isUrgent ? 'Тийм' : 'Үгүй',
+        request.scheduledDate ? new Date(request.scheduledDate).toISOString().split('T')[0] : '',
+        request.scheduledTime ? new Date(request.scheduledTime).toISOString() : ''
+      ];
+      csvRows.push(row.map(cell => `"${cell}"`).join(','));
+    });
+
+    const csvContent = csvRows.join('\n');
+    
+    // CSV файл буцаах
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="duudlagiin_tailan_${year || 'all'}_${month || 'all'}.csv"`);
+    
+    // BOM нэмэх (Excel-д зөв харуулахын тулд)
+    res.write('\ufeff');
+    res.end(csvContent);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export report', message: error.message });
   }
 });
 

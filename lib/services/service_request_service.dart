@@ -211,6 +211,87 @@ class ServiceRequestService {
     }
   }
 
+  // Тайлан татаж авах (CSV формат)
+  static Future<Map<String, dynamic>> exportReport({
+    int? year,
+    int? month,
+  }) async {
+    try {
+      // Token шалгах - эхлээд initialize хийх
+      await AuthService.initialize();
+      final token = AuthService.token;
+      
+      if (token == null || !AuthService.isLoggedIn) {
+        return {
+          'success': false,
+          'error': 'Нэвтрэх шаардлагатай',
+          'requiresLogin': true,
+        };
+      }
+
+      // Query параметрүүд
+      final queryParams = <String, String>{};
+      if (year != null) queryParams['year'] = year.toString();
+      if (month != null) queryParams['month'] = month.toString();
+
+      final uri = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.serviceRequestsEndpoint}/report/export')
+          .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+
+      // Headers
+      final headers = ApiConfig.getHeaders(token: token);
+
+      final response = await http.get(
+        uri,
+        headers: headers,
+      );
+
+      // 401 алдаа гарвал token дууссан
+      if (response.statusCode == 401) {
+        // Token устгах
+        await AuthService.logout();
+        return {
+          'success': false,
+          'error': 'Нэвтрэх хугацаа дууссан. Дахин нэвтрэнэ үү.',
+          'requiresLogin': true,
+        };
+      }
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'csvData': response.bodyBytes, // CSV өгөгдөл (bytes)
+          'contentType': response.headers['content-type'] ?? 'text/csv',
+        };
+      } else {
+        try {
+          final errorBody = response.body;
+          if (errorBody.isNotEmpty) {
+            final error = jsonDecode(errorBody);
+            return {
+              'success': false,
+              'error': error['error'] ?? 'Тайлан татахад алдаа гарлаа',
+            };
+          } else {
+            return {
+              'success': false,
+              'error': 'Тайлан татахад алдаа гарлаа (${response.statusCode})',
+            };
+          }
+        } catch (e) {
+          return {
+            'success': false,
+            'error': 'Тайлан татахад алдаа гарлаа (${response.statusCode})',
+          };
+        }
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Холболтын алдаа: ${e.toString()}',
+      };
+    }
+  }
+
   // JSON-аас ServiceRequest объект үүсгэх
   static ServiceRequest _fromJson(Map<String, dynamic> json) {
     return ServiceRequest(
