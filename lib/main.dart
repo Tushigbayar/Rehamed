@@ -3,11 +3,20 @@ import 'dart:math' as math;
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
+import 'services/api_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // App эхлэхэд хадгалсан token-ийг унших
   await AuthService.initialize();
+  // App эхлэхэд IP хаягийг initialize хийх
+  await ApiConfig.initialize();
+  // Амжилттай IP хаягийг олох (optional - background дээр)
+  ApiConfig.findWorkingIP().then((ip) {
+    if (ip != null) {
+      print('✅ App эхлэхэд амжилттай IP хаяг олдлоо: $ip');
+    }
+  });
   runApp(const HospitalApp());
 }
 

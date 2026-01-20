@@ -9,6 +9,7 @@ import '../main.dart';
 import 'login_screen.dart';
 import 'service_request_form_screen.dart';
 import 'service_request_list_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -176,6 +177,16 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
               IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                  );
+                },
+                icon: const Icon(Icons.settings, color: Colors.white),
+                tooltip: 'Тохиргоо',
+              ),
+              IconButton(
                 onPressed: () async {
                   await AuthService.logout();
                   if (context.mounted) {
@@ -185,6 +196,7 @@ class _HomeTabState extends State<_HomeTab> {
                   }
                 },
                 icon: const Icon(Icons.logout, color: Colors.white),
+                tooltip: 'Гарах',
               ),
             ],
           ),

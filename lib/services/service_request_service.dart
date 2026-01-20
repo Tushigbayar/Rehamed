@@ -321,7 +321,7 @@ class ServiceRequestService {
       if (e.toString().contains('TimeoutException') || e.toString().contains('хугацаа дууссан')) {
         errorMessage = 'Холболтын хугацаа дууссан. Серверт холбогдох боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. Интернэт холболт байгаа эсэх\n3. IP хаяг зөв эсэх';
       } else if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
-        errorMessage = 'Серверт холбогдох боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. IP хаяг зөв эсэх (${ApiConfig.computerIP})\n3. Device болон computer ижил WiFi дээр байгаа эсэх';
+        errorMessage = 'Серверт холбогдох боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. IP хаяг зөв эсэх (${ApiConfig.currentIP})\n3. Device болон computer ижил WiFi дээр байгаа эсэх\n4. IP хаяг солигдож байгаа эсэх (Settings дээр шинэчлэх)';
       } else if (e.toString().contains('ClientException')) {
         errorMessage = 'Холболтын алдаа. Серверт хүрэх боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. Firewall 5000 портыг блоклож байгаа эсэх';
       } else {

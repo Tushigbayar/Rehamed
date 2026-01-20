@@ -44,11 +44,15 @@ mongoose
       console.log(`Server is running on port ${PORT}`);
       console.log(`Local: http://localhost:${PORT}`);
       console.log(`Network: http://0.0.0.0:${PORT}`);
+      console.log('\n✅ Server нь БҮХ network interface дээр сонсож байна');
+      console.log('✅ Олон төхөөрөмж, олон IP хаягаас хандах боломжтой');
       console.log('\nPhysical device дээр ажиллахын тулд:');
       console.log('1. Компьютерийн IP хаягийг олох:');
       console.log('   Windows: ipconfig');
       console.log('   Mac/Linux: ifconfig эсвэл ip addr');
-      console.log('2. Flutter app дээр api_config.dart файлд computerIP-ийг өөрчлөх');
+      console.log('2. Flutter app дээр api_config.dart файлд computerIPs array-д IP хаягуудыг нэмэх');
+      console.log('3. Бүх төхөөрөмж ижил WiFi network дээр байх ёстой');
+      console.log('4. Firewall 5000 портыг нээх шаардлагатай');
     });
   })
   .catch((error) => {
