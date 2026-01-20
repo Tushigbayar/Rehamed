@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import '../services/api_config.dart';
 import '../main.dart';
-import 'dart:io';
+import 'dart:io' show Platform;
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -327,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 16),
                     _buildInfoRow('Одоогийн IP хаяг:', _currentIP ?? 'Тодорхойгүй'),
                     const SizedBox(height: 8),
-                    _buildInfoRow('Platform:', Platform.operatingSystem),
+                    _buildInfoRow('Platform:', kIsWeb ? 'Web (Chrome)' : Platform.operatingSystem),
                     const SizedBox(height: 8),
                     _buildInfoRow('Base URL:', ApiConfig.baseUrl),
                     const SizedBox(height: 16),

@@ -1,7 +1,8 @@
 // API тохиргооны файл
 // Backend серверийн URL болон бусад тохиргоонуудыг агуулна
 
-import 'dart:io';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -91,6 +92,12 @@ class ApiConfig {
   // Platform-аас хамаарч URL сонгох
   static String get baseUrl {
     try {
+      // Web platform дээр localhost ашиглах (browser дээр physical IP ашиглах боломжгүй)
+      if (kIsWeb) {
+        return 'http://localhost:5000/api';
+      }
+      
+      // Mobile/Desktop platform-ууд
       if (Platform.isAndroid) {
         // Android дээр currentIP ашиглах (physical device эсвэл emulator)
         // Emulator дээр 10.0.2.2 ашиглах хэрэгтэй бол доорх мөрийг uncomment хийх:
@@ -102,7 +109,7 @@ class ApiConfig {
         return 'http://localhost:5000/api'; // Simulator дээр
         // Physical device дээр: return 'http://${currentIP}:5000/api';
       } else {
-        // Windows, macOS, Linux дээр localhost
+        // Windows, macOS, Linux desktop дээр localhost
         return 'http://localhost:5000/api';
       }
     } catch (e) {
@@ -114,6 +121,12 @@ class ApiConfig {
   // Олон IP хаягаас амжилттай IP хаягийг олох функц
   // Бүх IP хаягийг туршиж, амжилттай IP хаягийг буцаана
   static Future<String?> findWorkingIP() async {
+    // Web platform дээр IP олох шаардлагагүй (localhost ашиглана)
+    if (kIsWeb) {
+      print('🌐 Web platform дээр localhost ашиглана');
+      return 'localhost';
+    }
+    
     // Бүх IP хаягуудыг нэгтгэх (saved IP, last working IP, default IPs)
     final List<String> ipsToTry = [];
     
