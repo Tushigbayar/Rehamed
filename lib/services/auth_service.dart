@@ -28,12 +28,25 @@ class AuthService {
 
   // Token-ийг SharedPreferences-аас унших
   static Future<void> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('auth_token');
-    if (_token != null) {
-      _isLoggedIn = true;
-      // Token-оос хэрэглэгчийн мэдээллийг авах
-      await getCurrentUser();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString('auth_token');
+      print('=== AuthService._loadToken ===');
+      print('Token loaded from SharedPreferences: ${_token != null}');
+      print('Token value: ${_token != null ? _token!.substring(0, 20) + "..." : "null"}');
+      
+      if (_token != null) {
+        _isLoggedIn = true;
+        // Token-оос хэрэглэгчийн мэдээллийг авах
+        await getCurrentUser();
+      } else {
+        print('WARNING: Token is null, user is not logged in');
+        _isLoggedIn = false;
+      }
+    } catch (e) {
+      print('ERROR loading token: $e');
+      _token = null;
+      _isLoggedIn = false;
     }
   }
 
@@ -41,6 +54,7 @@ class AuthService {
   static Future<Map<String, dynamic>> login(String username, String password) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}');
+      
       final response = await http.post(
         url,
         headers: ApiConfig.getHeaders(),
@@ -48,34 +62,73 @@ class AuthService {
           'username': username,
           'password': password,
         }),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Холболтын хугацаа дууссан. Сервер ажиллаж байгаа эсэхийг шалгана уу.');
+        },
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _token = data['token'];
-        _currentUserId = data['user']['id'];
-        _currentUserName = data['user']['name'];
-        _currentUserRole = data['user']['role'];
-        _isLoggedIn = true;
+        try {
+          final data = jsonDecode(response.body);
+          _token = data['token'];
+          _currentUserId = data['user']['id'];
+          _currentUserName = data['user']['name'];
+          _currentUserRole = data['user']['role'];
+          _isLoggedIn = true;
 
-        // Token-ийг хадгалах
-        await _saveToken(_token!);
+          // Token-ийг хадгалах
+          await _saveToken(_token!);
 
-        return {
-          'success': true,
-          'user': data['user'],
-        };
+          return {
+            'success': true,
+            'user': data['user'],
+          };
+        } catch (e) {
+          return {
+            'success': false,
+            'error': 'Серверийн хариу буруу байна: ${e.toString()}',
+          };
+        }
       } else {
-        final error = jsonDecode(response.body);
-        return {
-          'success': false,
-          'error': error['error'] ?? 'Нэвтрэхэд алдаа гарлаа',
-        };
+        try {
+          final errorBody = response.body;
+          if (errorBody.isNotEmpty) {
+            final error = jsonDecode(errorBody);
+            return {
+              'success': false,
+              'error': error['error'] ?? 'Нэвтрэхэд алдаа гарлаа',
+            };
+          } else {
+            return {
+              'success': false,
+              'error': 'Нэвтрэхэд алдаа гарлаа (${response.statusCode})',
+            };
+          }
+        } catch (e) {
+          return {
+            'success': false,
+            'error': 'Нэвтрэхэд алдаа гарлаа (${response.statusCode})',
+          };
+        }
       }
     } catch (e) {
+      String errorMessage = 'Холболтын алдаа';
+      
+      if (e.toString().contains('Failed host lookup') || 
+          e.toString().contains('Connection refused') ||
+          e.toString().contains('Network is unreachable')) {
+        errorMessage = 'Серверт холбогдох боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. IP хаяг зөв эсэх (api_config.dart файлд)\n3. Device болон computer ижил WiFi дээр байгаа эсэх';
+      } else if (e.toString().contains('timeout')) {
+        errorMessage = 'Холболтын хугацаа дууссан. Сервер ажиллаж байгаа эсэхийг шалгана уу.';
+      } else {
+        errorMessage = 'Холболтын алдаа: ${e.toString()}';
+      }
+      
       return {
         'success': false,
-        'error': 'Холболтын алдаа: ${e.toString()}',
+        'error': errorMessage,
       };
     }
   }
@@ -142,10 +195,17 @@ class AuthService {
 
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.meEndpoint}');
+      final headers = ApiConfig.getHeaders(token: _token);
+      print('=== AuthService.getCurrentUser ===');
+      print('URL: $url');
+      print('Headers: $headers');
+      
       final response = await http.get(
         url,
-        headers: ApiConfig.getHeaders(token: _token),
+        headers: headers,
       );
+      
+      print('Response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

@@ -38,8 +38,17 @@ mongoose
   .then(() => {
     console.log('MongoDB connected successfully');
     // MongoDB холбогдсоны дараа серверийг эхлүүлэх
-    app.listen(PORT, () => {
+    // 0.0.0.0 дээр listen хийх нь бүх network interface дээр сонсох гэсэн үг
+    // Энэ нь physical device-ээс холбогдох боломжийг олгоно
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server is running on port ${PORT}`);
+      console.log(`Local: http://localhost:${PORT}`);
+      console.log(`Network: http://0.0.0.0:${PORT}`);
+      console.log('\nPhysical device дээр ажиллахын тулд:');
+      console.log('1. Компьютерийн IP хаягийг олох:');
+      console.log('   Windows: ipconfig');
+      console.log('   Mac/Linux: ifconfig эсвэл ip addr');
+      console.log('2. Flutter app дээр api_config.dart файлд computerIP-ийг өөрчлөх');
     });
   })
   .catch((error) => {

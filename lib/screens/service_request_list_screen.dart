@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/service_request.dart';
 import '../services/service_request_service.dart';
 import '../main.dart';
 import 'service_request_form_screen.dart';
 import 'service_request_detail_screen.dart';
+
+// Platform-specific imports
+import 'dart:io' show Directory, File, Platform;
+import 'package:path_provider/path_provider.dart';
+import '../utils/web_download.dart' if (dart.library.io) '../utils/web_download_stub.dart';
 
 class ServiceRequestListScreen extends StatefulWidget {
   const ServiceRequestListScreen({super.key});
@@ -241,11 +245,127 @@ class _ServiceRequestListScreenState extends State<ServiceRequestListScreen> {
         // CSV өгөгдөл файл болгон хадгалах
         final csvData = result['csvData'] as List<int>;
         
-        // Download folder олох - platform-аас хамаарч
-        Directory? directory;
-        try {
-          if (Platform.isAndroid) {
-            // Android дээр Downloads folder олох
+        // Web platform дээр browser download API ашиглах
+        if (kIsWeb) {
+          try {
+            // Web дээр browser download API ашиглах
+            final fileName = 'duudlagiin_tailan_${year}_${month.toString().padLeft(2, '0')}.csv';
+            downloadFile(csvData, fileName);
+            
+            if (!context.mounted) return;
+            
+            // Амжилттай мэдэгдэл харуулах
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: LogoColors.green, size: 28),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Амжилттай!',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Тайлан файл амжилттай татагдлаа.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.insert_drive_file, size: 16, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Файл: $fileName',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Row(
+                            children: [
+                              Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text('Файл таны Downloads хавтас руу татагдлаа.'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Ойлголоо'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          } catch (e) {
+            if (!context.mounted) return;
+            
+            // Loading dialog хаах (хэрэв байгаа бол)
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            
+            // Алдааны alert dialog харуулах
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(Icons.error, color: Colors.red, size: 28),
+                    SizedBox(width: 8),
+                    Text('Алдаа', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                content: Text('Файл татахад алдаа гарлаа:\n${e.toString()}'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Ойлголоо'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
+        }
+        
+        // Mobile/Desktop platform дээр файл систем ашиглах
+        if (!kIsWeb) {
+          // Download folder олох - platform-аас хамаарч
+          // Note: dart:io is only available on non-web platforms
+          // ignore: undefined_class
+          Directory? directory;
+          try {
+            // ignore: undefined_getter
+            if (Platform.isAndroid) {
+              // Android дээр Downloads folder олох
             try {
               final externalDir = await getExternalStorageDirectory();
               if (externalDir != null) {
@@ -322,7 +442,7 @@ class _ServiceRequestListScreenState extends State<ServiceRequestListScreen> {
                     Text('Алдаа', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   ],
                 ),
-                content: Text('Файл хадгалах хавтас олдсонгүй.\nPlatform: ${Platform.operatingSystem}'),
+                content: Text('Файл хадгалах хавтас олдсонгүй.\nPlatform: ${!kIsWeb ? Platform.operatingSystem : "Web"}'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -424,12 +544,33 @@ class _ServiceRequestListScreenState extends State<ServiceRequestListScreen> {
           );
         } catch (e) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Файл хадгалахад алдаа гарлаа: ${e.toString()}'),
-              backgroundColor: Colors.red,
+          
+          // Loading dialog хаах (хэрэв байгаа бол)
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+          
+          // Алдааны alert dialog харуулах
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.error, color: Colors.red, size: 28),
+                  SizedBox(width: 8),
+                  Text('Алдаа', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Text('Файл хадгалахад алдаа гарлаа:\n${e.toString()}'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Ойлголоо'),
+                ),
+              ],
             ),
           );
+          }
         }
       } else {
         if (!context.mounted) return;

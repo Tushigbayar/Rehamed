@@ -120,17 +120,29 @@ router.get('/me', authenticateToken, async (req, res) => {
 function authenticateToken(req, res, next) {
   // Authorization header-оос токенийг авах
   const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  
+  // Debug: Header шалгах
+  console.log('=== authenticateToken Debug ===');
+  console.log('Request path:', req.path);
+  console.log('Authorization header:', authHeader ? authHeader.substring(0, 50) + '...' : 'null');
+  console.log('All headers:', Object.keys(req.headers));
+  
   const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" форматаас токенийг салгах
+  
+  console.log('Extracted token:', token ? token.substring(0, 30) + '...' : 'null');
 
   if (!token) {
+    console.log('ERROR: Token not found');
     return res.status(401).json({ error: 'Access token required' });
   }
 
   // Токенийг шалгах
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
+      console.log('ERROR: Token verification failed:', err.message);
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
+    console.log('Token verified successfully. User:', user);
     req.user = user; // Хүсэлтэд хэрэглэгчийн мэдээллийг нэмэх
     next(); // Дараагийн middleware эсвэл route handler руу шилжих
   });

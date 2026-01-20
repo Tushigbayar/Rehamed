@@ -47,10 +47,29 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Нэвтрэх нэр эсвэл нууц үг буруу байна'),
-              backgroundColor: Colors.red,
+          // Алдааны alert dialog харуулах
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.error, color: Colors.red, size: 28),
+                  SizedBox(width: 8),
+                  Text('Алдаа', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Text(
+                  result['error'] ?? 'Нэвтрэхэд алдаа гарлаа',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Ойлголоо'),
+                ),
+              ],
             ),
           );
         }

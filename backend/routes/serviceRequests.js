@@ -233,6 +233,10 @@ router.get('/status/:status', authenticateToken, async (req, res) => {
 // Тайлан авах endpoint (он сараар шүүх, CSV форматаар буцаах)
 router.get('/report/export', authenticateToken, async (req, res) => {
   try {
+    console.log('=== Report Export Endpoint ===');
+    console.log('User:', req.user);
+    console.log('Query params:', req.query);
+    
     const { year, month } = req.query;
     
     // Огноо шүүх query үүсгэх

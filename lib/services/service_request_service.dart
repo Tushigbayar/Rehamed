@@ -221,7 +221,14 @@ class ServiceRequestService {
       await AuthService.initialize();
       final token = AuthService.token;
       
+      // Debug: Token байгаа эсэхийг шалгах
+      print('=== Export Report Debug ===');
+      print('Token exists: ${token != null}');
+      print('Token value: ${token != null ? token.substring(0, 20) + "..." : "null"}');
+      print('Is logged in: ${AuthService.isLoggedIn}');
+      
       if (token == null || !AuthService.isLoggedIn) {
+        print('ERROR: Token is null or user is not logged in');
         return {
           'success': false,
           'error': 'Нэвтрэх шаардлагатай',
@@ -239,11 +246,34 @@ class ServiceRequestService {
 
       // Headers
       final headers = ApiConfig.getHeaders(token: token);
+      
+      // Debug: Headers шалгах
+      print('Request URL: $uri');
+      print('Headers: $headers');
+      print('Authorization header: ${headers['Authorization']?.substring(0, 30) ?? "null"}...');
 
       final response = await http.get(
         uri,
         headers: headers,
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Холболтын хугацаа дууссан. Серверт холбогдох боломжгүй байна.');
+        },
       );
+      
+      // Debug: Response шалгах
+      print('=== Response Debug ===');
+      print('Response status: ${response.statusCode}');
+      print('Response headers: ${response.headers}');
+      try {
+        final bodyPreview = response.body.length > 500 
+            ? response.body.substring(0, 500) + '...' 
+            : response.body;
+        print('Response body: $bodyPreview');
+      } catch (e) {
+        print('Response body: (unable to read)');
+      }
 
       // 401 алдаа гарвал token дууссан
       if (response.statusCode == 401) {
@@ -285,9 +315,22 @@ class ServiceRequestService {
         }
       }
     } catch (e) {
+      // Дэлгэрэнгүй алдааны мэдэгдэл
+      String errorMessage = 'Холболтын алдаа гарлаа';
+      
+      if (e.toString().contains('TimeoutException') || e.toString().contains('хугацаа дууссан')) {
+        errorMessage = 'Холболтын хугацаа дууссан. Серверт холбогдох боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. Интернэт холболт байгаа эсэх\n3. IP хаяг зөв эсэх';
+      } else if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        errorMessage = 'Серверт холбогдох боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. IP хаяг зөв эсэх (${ApiConfig.computerIP})\n3. Device болон computer ижил WiFi дээр байгаа эсэх';
+      } else if (e.toString().contains('ClientException')) {
+        errorMessage = 'Холболтын алдаа. Серверт хүрэх боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. Firewall 5000 портыг блоклож байгаа эсэх';
+      } else {
+        errorMessage = 'Алдаа гарлаа: ${e.toString()}';
+      }
+      
       return {
         'success': false,
-        'error': 'Холболтын алдаа: ${e.toString()}',
+        'error': errorMessage,
       };
     }
   }
