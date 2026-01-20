@@ -53,7 +53,16 @@ class AuthService {
   // Нэвтрэх функц
   static Future<Map<String, dynamic>> login(String username, String password) async {
     try {
+      // IP хаягийг initialize хийх (өөр төхөөрөмж дээр ашиглах)
+      await ApiConfig.initialize();
+      
       final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}');
+      
+      // Debug: URL болон headers хэвлэх
+      print('=== Login Debug ===');
+      print('Login URL: $url');
+      print('Base URL: ${ApiConfig.baseUrl}');
+      print('Current IP: ${ApiConfig.currentIP}');
       
       final response = await http.post(
         url,
@@ -63,7 +72,7 @@ class AuthService {
           'password': password,
         }),
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30), // Timeout-ийг уртасгасан
         onTimeout: () {
           throw Exception('Холболтын хугацаа дууссан. Сервер ажиллаж байгаа эсэхийг шалгана уу.');
         },
@@ -116,14 +125,33 @@ class AuthService {
     } catch (e) {
       String errorMessage = 'Холболтын алдаа';
       
-      if (e.toString().contains('Failed host lookup') || 
+      // Debug: Алдааны мэдээлэл хэвлэх
+      print('=== Login Error ===');
+      print('Error type: ${e.runtimeType}');
+      print('Error message: ${e.toString()}');
+      
+      // ClientException (Load failed) - ихэвчлэн network холболт байхгүй эсвэл IP хаяг буруу байх
+      if (e.toString().contains('ClientException') || 
+          e.toString().contains('Load failed') ||
+          e.toString().contains('Failed host lookup') || 
           e.toString().contains('Connection refused') ||
-          e.toString().contains('Network is unreachable')) {
-        errorMessage = 'Серверт холбогдох боломжгүй байна.\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. IP хаяг зөв эсэх (api_config.dart файлд)\n3. Device болон computer ижил WiFi дээр байгаа эсэх';
-      } else if (e.toString().contains('timeout')) {
-        errorMessage = 'Холболтын хугацаа дууссан. Сервер ажиллаж байгаа эсэхийг шалгана уу.';
+          e.toString().contains('Network is unreachable') ||
+          e.toString().contains('SocketException')) {
+        errorMessage = 'Серверт холбогдох боломжгүй байна.\n\n'
+            'Шалгах зүйлс:\n'
+            '1. Backend server ажиллаж байгаа эсэх (http://${ApiConfig.currentIP}:5000)\n'
+            '2. IP хаяг зөв эсэх (Одоогийн IP: ${ApiConfig.currentIP})\n'
+            '3. Device болон computer ижил WiFi дээр байгаа эсэх\n'
+            '4. Firewall 5000 портыг блоклож байгаа эсэх\n\n'
+            '💡 Settings дээр IP хаягийг шалгах эсвэл "Автоматаар олох" товчийг дарах';
+      } else if (e.toString().contains('timeout') || e.toString().contains('TimeoutException')) {
+        errorMessage = 'Холболтын хугацаа дууссан.\n\n'
+            'Сервер ажиллаж байгаа эсэхийг шалгана уу.\n'
+            'IP хаяг: ${ApiConfig.currentIP}';
       } else {
-        errorMessage = 'Холболтын алдаа: ${e.toString()}';
+        errorMessage = 'Холболтын алдаа: ${e.toString()}\n\n'
+            'IP хаяг: ${ApiConfig.currentIP}\n'
+            'Base URL: ${ApiConfig.baseUrl}';
       }
       
       return {
