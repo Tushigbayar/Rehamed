@@ -63,8 +63,11 @@ class AuthService {
       // Debug: URL болон headers хэвлэх
       print('=== Login Debug ===');
       print('Login URL: $url');
-      print('Base URL: ${ApiConfig.baseUrl}');
+      print('Base URL: $baseUrl');
       print('Current IP: ${ApiConfig.currentIP}');
+      
+      // Base URL-ийг cache хийх (дараагийн хүсэлтүүдэд ашиглах)
+      await ApiConfig.cacheBaseUrl();
       
       final response = await http.post(
         url,

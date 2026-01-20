@@ -51,7 +51,10 @@ class ApiConfig {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_ipKey, ip);
+      _currentIP = ip;
       print('IP хаяг хадгалагдлаа: $ip');
+      // Base URL-ийг дахин cache хийх
+      await cacheBaseUrl();
     } catch (e) {
       print('Error saving IP: $e');
     }
@@ -104,6 +107,8 @@ class ApiConfig {
       } else {
         await prefs.remove(_publicUrlKey);
       }
+      // Base URL-ийг дахин cache хийх
+      await cacheBaseUrl();
     } catch (e) {
       print('Error saving public URL: $e');
     }
@@ -117,6 +122,8 @@ class ApiConfig {
     if (lastWorkingIP != null && lastWorkingIP.isNotEmpty) {
       _currentIP = lastWorkingIP;
     }
+    // Base URL-ийг cache хийх (public URL эсвэл local IP)
+    await cacheBaseUrl();
   }
   
   // Platform-аас хамаарч URL сонгох
@@ -158,10 +165,23 @@ class ApiConfig {
     }
   }
   
+  // Cached base URL (async getBaseUrl()-ийн үр дүнг хадгалах)
+  static String? _cachedBaseUrl;
+  
+  // Base URL-ийг cache хийх
+  static Future<void> cacheBaseUrl() async {
+    _cachedBaseUrl = await getBaseUrl();
+  }
+  
   // Synchronous getter (backward compatibility)
+  // Cached base URL ашиглах, байхгүй бол default URL буцаана
   static String get baseUrl {
-    // Энэ нь зөвхөн default URL буцаана, public URL-ийг ашиглахгүй
-    // Async getBaseUrl() ашиглах нь илүү сайн
+    // Cached base URL байвал түүнийг ашиглах
+    if (_cachedBaseUrl != null && _cachedBaseUrl!.isNotEmpty) {
+      return _cachedBaseUrl!;
+    }
+    
+    // Cached base URL байхгүй бол default URL буцаана
     try {
       if (kIsWeb) {
         return 'http://localhost:5000/api';
