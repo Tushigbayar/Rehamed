@@ -14,8 +14,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _ipController = TextEditingController();
+  final TextEditingController _publicUrlController = TextEditingController();
   bool _isLoading = false;
   String? _currentIP;
+  String? _currentPublicUrl;
   String? _testResult;
 
   @override
@@ -26,9 +28,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadCurrentIP() async {
     final ip = await ApiConfig.getSavedIP();
+    final publicUrl = await ApiConfig.getSavedPublicUrl();
     setState(() {
       _currentIP = ip;
+      _currentPublicUrl = publicUrl;
       _ipController.text = ip;
+      _publicUrlController.text = publicUrl ?? '';
     });
   }
 
@@ -129,6 +134,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _testResult = 'Алдаа: ${e.toString()}';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _savePublicUrl() async {
+    final url = _publicUrlController.text.trim();
+    
+    if (url.isEmpty) {
+      await ApiConfig.savePublicUrl(null);
+      setState(() {
+        _currentPublicUrl = null;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Public URL устгагдлаа'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      return;
+    }
+
+    // URL формат шалгах
+    final urlRegex = RegExp(r'^https?://.+');
+    if (!urlRegex.hasMatch(url)) {
+      _showError('URL формат буруу байна\nЖишээ: https://your-app.railway.app');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await ApiConfig.savePublicUrl(url);
+      setState(() {
+        _currentPublicUrl = url;
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Public URL амжилттай хадгалагдлаа'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showError('Public URL хадгалахад алдаа гарлаа: ${e.toString()}');
+    }
+  }
+
+  Future<void> _clearPublicUrl() async {
+    _publicUrlController.clear();
+    await ApiConfig.savePublicUrl(null);
+    setState(() {
+      _currentPublicUrl = null;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Public URL устгагдлаа'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
 
@@ -304,6 +378,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            // Public URL хэсэг (утасны data эсвэл internet дээр ашиглах)
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.cloud, color: LogoColors.green, size: 28),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Public URL (Утасны data эсвэл Internet)',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Утасны data эсвэл internet дээр ажиллахын тулд public URL оруулна уу',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Жишээ: https://your-app.railway.app эсвэл https://abc123.ngrok.io',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _publicUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'Public URL (optional)',
+                        hintText: 'https://your-app.railway.app',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.cloud),
+                        suffixIcon: _publicUrlController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _publicUrlController.clear();
+                                  setState(() {});
+                                },
+                              )
+                            : null,
+                      ),
+                      keyboardType: TextInputType.url,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isLoading ? null : _savePublicUrl,
+                            icon: _isLoading
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.save),
+                            label: Text(_isLoading ? 'Хадгалж байна...' : 'Public URL хадгалах'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: LogoColors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading ? null : _clearPublicUrl,
+                            icon: const Icon(Icons.clear),
+                            label: const Text('Цэвэрлэх'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             // Мэдээлэл хэсэг
             Card(
               elevation: 2,
@@ -328,9 +501,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 16),
                     _buildInfoRow('Одоогийн IP хаяг:', _currentIP ?? 'Тодорхойгүй'),
                     const SizedBox(height: 8),
+                    _buildInfoRow('Public URL:', _currentPublicUrl ?? 'Ашиглахгүй'),
+                    const SizedBox(height: 8),
                     _buildInfoRow('Platform:', kIsWeb ? 'Web (Chrome)' : Platform.operatingSystem),
                     const SizedBox(height: 8),
-                    _buildInfoRow('Base URL:', ApiConfig.baseUrl),
+                    FutureBuilder<String>(
+                      future: ApiConfig.getBaseUrl(),
+                      builder: (context, snapshot) {
+                        return _buildInfoRow('Base URL:', snapshot.data ?? ApiConfig.baseUrl);
+                      },
+                    ),
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -350,9 +530,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            '• IP хаяг солигдоход "Автоматаар олох" товчийг дарах\n'
-                            '• Эсвэл шинэ IP хаягийг оруулж "Хадгалах" товчийг дарах\n'
-                            '• Бүх төхөөрөмж ижил WiFi network дээр байх ёстой',
+                            '• WiFi дээр: IP хаяг оруулна (жишээ: 192.168.1.100)\n'
+                            '• Утасны data эсвэл Internet дээр: Public URL оруулна (жишээ: https://your-app.railway.app)\n'
+                            '• Public URL байвал түүнийг ашиглана, байхгүй бол IP хаяг ашиглана\n'
+                            '• IP хаяг солигдоход "Автоматаар олох" товчийг дарах',
                             style: TextStyle(fontSize: 12),
                           ),
                         ],

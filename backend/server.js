@@ -12,7 +12,13 @@ dotenv.config();
 const app = express();
 
 // Middleware - бүх хүсэлтэнд хэрэглэгдэх тохиргоонууд
-app.use(cors()); // Cross-Origin Resource Sharing - бусад домэйнуудаас хүсэлт хүлээн авах зөвшөөрөл
+// CORS тохиргоо - БҮХ төхөөрөмж, бүх IP хаягаас хандах боломжтой болгох
+app.use(cors({
+  origin: '*', // Бүх origin-ээс хүлээн авах (development дээр)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false // Cookie шаардлагагүй
+}));
 app.use(express.json()); // JSON форматтай хүсэлтүүдийг унших
 app.use(express.urlencoded({ extended: true })); // URL-encoded хүсэлтүүдийг унших
 

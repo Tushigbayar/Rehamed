@@ -22,9 +22,15 @@ class ApiConfig {
     // '192.168.0.105',
   ];
   
+  // Public URL эсвэл ngrok tunnel URL (утасны data эсвэл internet дээр ашиглах)
+  // Жишээ: 'https://your-app.railway.app' эсвэл 'https://abc123.ngrok.io'
+  // Энэ URL-ийг Settings screen дээр оруулж болно
+  static const String? publicUrl = null; // null бол local IP ашиглана
+  
   // SharedPreferences key
   static const String _ipKey = 'server_ip_address';
   static const String _lastWorkingIPKey = 'last_working_ip';
+  static const String _publicUrlKey = 'public_server_url';
   
   // IP хаягийг SharedPreferences-аас унших эсвэл default ашиглах
   static Future<String> getSavedIP() async {
@@ -79,6 +85,30 @@ class ApiConfig {
   static String get currentIP => _currentIP.isNotEmpty ? _currentIP : defaultIP;
   static set currentIP(String ip) => _currentIP = ip;
   
+  // Public URL-ийг унших
+  static Future<String?> getSavedPublicUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_publicUrlKey);
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  // Public URL-ийг хадгалах
+  static Future<void> savePublicUrl(String? url) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (url != null && url.isNotEmpty) {
+        await prefs.setString(_publicUrlKey, url);
+      } else {
+        await prefs.remove(_publicUrlKey);
+      }
+    } catch (e) {
+      print('Error saving public URL: $e');
+    }
+  }
+  
   // IP хаягийг initialize хийх
   static Future<void> initialize() async {
     _currentIP = await getSavedIP();
@@ -90,8 +120,18 @@ class ApiConfig {
   }
   
   // Platform-аас хамаарч URL сонгох
-  static String get baseUrl {
+  static Future<String> getBaseUrl() async {
     try {
+      // Эхлээд public URL шалгах (утасны data эсвэл internet дээр ашиглах)
+      final savedPublicUrl = await getSavedPublicUrl();
+      if (savedPublicUrl != null && savedPublicUrl.isNotEmpty) {
+        // Public URL байвал түүнийг ашиглах (https эсвэл http)
+        final url = savedPublicUrl.endsWith('/api') ? savedPublicUrl : '$savedPublicUrl/api';
+        print('🌐 Public URL ашиглаж байна: $url');
+        return url;
+      }
+      
+      // Public URL байхгүй бол local IP ашиглах
       // Web platform дээр localhost ашиглах (browser дээр physical IP ашиглах боломжгүй)
       if (kIsWeb) {
         return 'http://localhost:5000/api';
@@ -114,6 +154,26 @@ class ApiConfig {
       }
     } catch (e) {
       // Platform тодорхойлох алдаа гарвал localhost ашиглах
+      return 'http://localhost:5000/api';
+    }
+  }
+  
+  // Synchronous getter (backward compatibility)
+  static String get baseUrl {
+    // Энэ нь зөвхөн default URL буцаана, public URL-ийг ашиглахгүй
+    // Async getBaseUrl() ашиглах нь илүү сайн
+    try {
+      if (kIsWeb) {
+        return 'http://localhost:5000/api';
+      }
+      if (Platform.isAndroid) {
+        return 'http://${currentIP}:5000/api';
+      } else if (Platform.isIOS) {
+        return 'http://localhost:5000/api';
+      } else {
+        return 'http://localhost:5000/api';
+      }
+    } catch (e) {
       return 'http://localhost:5000/api';
     }
   }

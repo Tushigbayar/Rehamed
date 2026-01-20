@@ -56,7 +56,9 @@ class AuthService {
       // IP хаягийг initialize хийх (өөр төхөөрөмж дээр ашиглах)
       await ApiConfig.initialize();
       
-      final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}');
+      // Public URL эсвэл local IP ашиглах
+      final baseUrl = await ApiConfig.getBaseUrl();
+      final url = Uri.parse('$baseUrl${ApiConfig.loginEndpoint}');
       
       // Debug: URL болон headers хэвлэх
       print('=== Login Debug ===');
