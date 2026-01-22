@@ -37,7 +37,10 @@ app.get('/api/health', (req, res) => {
 // MongoDB холболтын тохиргоо
 // Production дээр MONGODB_URI заавал байх ёстой (MongoDB Atlas connection string)
 // Development дээр л local MongoDB fallback ашиглана
-const MONGODB_URI = process.env.MONGODB_URI || (process.env.NODE_ENV !== 'production' ? 'mongodb://localhost:27017/rehamed' : null);
+const MONGODB_URI = process.env.MONGODB_URI || 
+  (process.env.NODE_ENV !== 'production' 
+    ? 'mongodb+srv://tushigbayrr_db_user:dh0ucygXgr1K848b@cluster0.3nhsvrx.mongodb.net/rehamed?retryWrites=true&w=majority'
+    : null);
 const PORT = process.env.PORT || 5000;
 
 // Production дээр MONGODB_URI байхгүй бол алдаа өгөх
