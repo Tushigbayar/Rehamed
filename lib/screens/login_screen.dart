@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../services/api_config.dart';
 import '../main.dart';
 import 'home_screen.dart';
-import 'settings_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -69,30 +67,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       result['error'] ?? 'Нэвтрэхэд алдаа гарлаа',
                       style: const TextStyle(fontSize: 14),
                     ),
-                    if (result['error']?.toString().contains('Серверт холбогдох боломжгүй') == true ||
-                        result['error']?.toString().contains('ClientException') == true ||
-                        result['error']?.toString().contains('Load failed') == true) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'IP хаяг: ${ApiConfig.currentIP}\nBase URL: ${ApiConfig.baseUrl}',
-                                style: const TextStyle(fontSize: 12, color: Colors.blue),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -101,20 +75,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Ойлголоо'),
                 ),
-                if (result['error']?.toString().contains('Серверт холбогдох боломжгүй') == true ||
-                    result['error']?.toString().contains('ClientException') == true ||
-                    result['error']?.toString().contains('Load failed') == true)
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.settings, size: 18),
-                    label: const Text('Тохиргоо'),
-                  ),
               ],
             ),
           );

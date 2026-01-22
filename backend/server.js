@@ -35,8 +35,18 @@ app.get('/api/health', (req, res) => {
 });
 
 // MongoDB холболтын тохиргоо
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/rehamed';
+// Production дээр MONGODB_URI заавал байх ёстой (MongoDB Atlas connection string)
+// Development дээр л local MongoDB fallback ашиглана
+const MONGODB_URI = process.env.MONGODB_URI || (process.env.NODE_ENV !== 'production' ? 'mongodb://localhost:27017/rehamed' : null);
 const PORT = process.env.PORT || 5000;
+
+// Production дээр MONGODB_URI байхгүй бол алдаа өгөх
+if (!MONGODB_URI) {
+  console.error('❌ Алдаа: MONGODB_URI environment variable заавал тохируулах ёстой!');
+  console.error('   Railway дээр MongoDB Atlas connection string нэмэх шаардлагатай.');
+  console.error('   Жишээ: mongodb+srv://username:password@cluster.mongodb.net/database');
+  process.exit(1);
+}
 
 // MongoDB-д холбогдох
 mongoose
