@@ -35,48 +35,24 @@ app.get('/api/health', (req, res) => {
 });
 
 // MongoDB холболтын тохиргоо
-// Production дээр MONGODB_URI заавал байх ёстой (MongoDB Atlas connection string)
-// Development дээр л local MongoDB fallback ашиглана
-const MONGODB_URI = process.env.MONGODB_URI || 
-  (process.env.NODE_ENV !== 'production' 
-    ? 'mongodb+srv://tushigbayrr_db_user:dh0ucygXgr1K848b@cluster0.3nhsvrx.mongodb.net/rehamed?retryWrites=true&w=majority'
-    : null);
+const MONGODB_URI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
 
-// Production дээр MONGODB_URI байхгүй бол алдаа өгөх
 if (!MONGODB_URI) {
-  console.error('❌ Алдаа: MONGODB_URI environment variable заавал тохируулах ёстой!');
-  console.error('   Railway дээр MongoDB Atlas connection string нэмэх шаардлагатай.');
-  console.error('   Жишээ: mongodb+srv://username:password@cluster.mongodb.net/database');
+  console.error('❌ MONGODB_URI missing');
   process.exit(1);
 }
 
-// MongoDB-д холбогдох
-mongoose
-  .connect(MONGODB_URI)
+mongoose.connect(MONGODB_URI)
   .then(() => {
-    console.log('MongoDB connected successfully');
-    // MongoDB холбогдсоны дараа серверийг эхлүүлэх
-    // 0.0.0.0 дээр listen хийх нь бүх network interface дээр сонсох гэсэн үг
-    // Энэ нь physical device-ээс холбогдох боломжийг олгоно
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server is running on port ${PORT}`);
-      console.log(`Local: http://localhost:${PORT}`);
-      console.log(`Network: http://0.0.0.0:${PORT}`);
-      console.log('\n✅ Server нь БҮХ network interface дээр сонсож байна');
-      console.log('✅ Олон төхөөрөмж, олон IP хаягаас хандах боломжтой');
-      console.log('\nPhysical device дээр ажиллахын тулд:');
-      console.log('1. Компьютерийн IP хаягийг олох:');
-      console.log('   Windows: ipconfig');
-      console.log('   Mac/Linux: ifconfig эсвэл ip addr');
-      console.log('2. Flutter app дээр api_config.dart файлд computerIPs array-д IP хаягуудыг нэмэх');
-      console.log('3. Бүх төхөөрөмж ижил WiFi network дээр байх ёстой');
-      console.log('4. Firewall 5000 портыг нээх шаардлагатай');
+    console.log('✅ MongoDB connected');
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-    process.exit(1); // Алдаа гарвал програм зогсоох
+  .catch(err => {
+    console.error('❌ MongoDB error:', err);
+    process.exit(1);
   });
 
 // Error handling middleware - бүх алдааг барьж авах
