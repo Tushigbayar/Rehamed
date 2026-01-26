@@ -4,6 +4,7 @@ import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
 import 'services/api_config.dart';
+import 'services/socket_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,12 +12,17 @@ void main() async {
   await AuthService.initialize();
   // App эхлэхэд IP хаягийг initialize хийх
   await ApiConfig.initialize();
-  // Амжилттай IP хаягийг олох (optional - background дээр)
-  ApiConfig.findWorkingIP().then((ip) {
-    if (ip != null) {
-      print('✅ App эхлэхэд амжилттай IP хаяг олдлоо: $ip');
-    }
-  });
+  
+  // Хэрэглэгч нэвтэрсэн бол socket холболт эхлүүлэх
+  if (AuthService.isLoggedIn) {
+    SocketService.connect().then((_) {
+      final userId = AuthService.currentUserId;
+      if (userId != null) {
+        SocketService.joinUserRoom(userId);
+      }
+    });
+  }
+  
   runApp(const HospitalApp());
 }
 

@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_config.dart';
+import 'socket_service.dart';
 
 class AuthService {
   static String? _token;
@@ -39,6 +40,7 @@ class AuthService {
         _isLoggedIn = true;
         // Token-оос хэрэглэгчийн мэдээллийг авах
         await getCurrentUser();
+        // getCurrentUser дотор socket холболт хийгдэнэ
       } else {
         print('WARNING: Token is null, user is not logged in');
         _isLoggedIn = false;
@@ -95,6 +97,13 @@ class AuthService {
           // Token-ийг хадгалах
           await _saveToken(_token!);
 
+          // Socket.IO холболт эхлүүлэх
+          SocketService.connect().then((_) {
+            if (_currentUserId != null) {
+              SocketService.joinUserRoom(_currentUserId!);
+            }
+          });
+
           return {
             'success': true,
             'user': data['user'],
@@ -148,7 +157,7 @@ class AuthService {
             '2. IP хаяг зөв эсэх (Одоогийн IP: ${ApiConfig.currentIP})\n'
             '3. Device болон computer ижил WiFi дээр байгаа эсэх\n'
             '4. Firewall 5000 портыг блоклож байгаа эсэх\n\n'
-            '💡 Settings дээр IP хаягийг шалгах эсвэл "Автоматаар олох" товчийг дарах';
+            '💡 Settings дээр IP хаягийг шалгах';
       } else if (e.toString().contains('timeout') || e.toString().contains('TimeoutException')) {
         errorMessage = 'Холболтын хугацаа дууссан.\n\n'
             'Сервер ажиллаж байгаа эсэхийг шалгана уу.\n'
@@ -199,6 +208,13 @@ class AuthService {
         // Token-ийг хадгалах
         await _saveToken(_token!);
 
+        // Socket.IO холболт эхлүүлэх
+        SocketService.connect().then((_) {
+          if (_currentUserId != null) {
+            SocketService.joinUserRoom(_currentUserId!);
+          }
+        });
+
         return {
           'success': true,
           'user': data['user'],
@@ -246,6 +262,13 @@ class AuthService {
         _currentUserName = data['user']['name'];
         _currentUserRole = data['user']['role'];
         _isLoggedIn = true;
+        
+        // Socket.IO холболт эхлүүлэх
+        SocketService.connect().then((_) {
+          if (_currentUserId != null) {
+            SocketService.joinUserRoom(_currentUserId!);
+          }
+        });
       } else {
         // Token хүчингүй болсон, гарах
         await logout();
@@ -263,6 +286,9 @@ class AuthService {
     _currentUserName = null;
     _currentUserRole = null;
     _token = null;
+
+    // Socket.IO холболт салгах
+    SocketService.leaveUserRoom();
 
     // Token-ийг устгах
     final prefs = await SharedPreferences.getInstance();

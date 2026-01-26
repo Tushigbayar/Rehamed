@@ -5,11 +5,26 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const http = require('http');
+const { Server } = require('socket.io');
 
 // .env файлаас тохиргоонуудыг унших
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+
+// Socket.IO тохиргоо
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: false
+  }
+});
+
+// Socket.IO холболтыг глобал болгох (бусад файлуудад ашиглах)
+app.set('io', io);
 
 // Middleware - бүх хүсэлтэнд хэрэглэгдэх тохиргоонууд
 // CORS тохиргоо - БҮХ төхөөрөмж, бүх IP хаягаас хандах боломжтой болгох
@@ -46,8 +61,26 @@ if (!MONGODB_URI) {
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('✅ MongoDB connected');
-    app.listen(PORT, () => {
+    
+    // Socket.IO холболтын event listener
+    io.on('connection', (socket) => {
+      console.log('🔌 Client connected:', socket.id);
+      
+      // Хэрэглэгч нэвтэрсний дараа room-д нэгдэх
+      socket.on('join', (userId) => {
+        socket.join(`user_${userId}`);
+        console.log(`👤 User ${userId} joined room: user_${userId}`);
+      });
+      
+      // Холболт тасарсан үед
+      socket.on('disconnect', () => {
+        console.log('🔌 Client disconnected:', socket.id);
+      });
+    });
+    
+    server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🔌 Socket.IO server ready`);
     });
   })
   .catch(err => {

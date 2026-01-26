@@ -98,44 +98,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _autoFindIP() async {
-    setState(() {
-      _isLoading = true;
-      _testResult = null;
-    });
-
-    try {
-      final workingIP = await ApiConfig.findWorkingIP();
-      if (workingIP != null) {
-        setState(() {
-          _ipController.text = workingIP;
-          _currentIP = workingIP;
-          _testResult = 'Амжилттай IP хаяг олдлоо: $workingIP';
-          _isLoading = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Амжилттай IP хаяг олдлоо: $workingIP'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        setState(() {
-          _testResult = 'Амжилттай IP хаяг олдсонгүй';
-          _isLoading = false;
-        });
-        _showError('Бүх IP хаягт холбогдох боломжгүй байна\n\nШалгах зүйлс:\n1. Backend server ажиллаж байгаа эсэх\n2. Device болон computer ижил WiFi дээр байгаа эсэх');
-      }
-    } catch (e) {
-      setState(() {
-        _testResult = 'Алдаа: ${e.toString()}';
-        _isLoading = false;
-      });
-    }
-  }
 
   Future<void> _savePublicUrl() async {
     final url = _publicUrlController.text.trim();
@@ -339,39 +301,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                       ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _saveIP,
-                            icon: _isLoading
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.save),
-                            label: Text(_isLoading ? 'Хадгалж байна...' : 'Хадгалах'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: LogoColors.blue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                          ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _saveIP,
+                        icon: _isLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.save),
+                        label: Text(_isLoading ? 'Хадгалж байна...' : 'Хадгалах'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: LogoColors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _isLoading ? null : _autoFindIP,
-                            icon: const Icon(Icons.search),
-                            label: const Text('Автоматаар олох'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: LogoColors.blue,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
@@ -532,8 +479,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Text(
                             '• WiFi дээр: IP хаяг оруулна (жишээ: 192.168.1.100)\n'
                             '• Утасны data эсвэл Internet дээр: Public URL оруулна (жишээ: https://your-app.railway.app)\n'
-                            '• Public URL байвал түүнийг ашиглана, байхгүй бол IP хаяг ашиглана\n'
-                            '• IP хаяг солигдоход "Автоматаар олох" товчийг дарах',
+                            '• Public URL байвал түүнийг ашиглана, байхгүй бол IP хаяг ашиглана',
                             style: TextStyle(fontSize: 12),
                           ),
                         ],

@@ -124,6 +124,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (description) request.description = description;
     if (location) request.location = location;
     if (status !== undefined) {
+      const previousStatus = request.status;
       request.status = status;
       // Статус өөрчлөгдөхөд огноог автоматаар нэмэх
       if (status === 'accepted' && !request.acceptedAt) {
@@ -131,6 +132,36 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
       if (status === 'completed' && !request.completedAt) {
         request.completedAt = new Date();
+      }
+      
+      // Статус өөрчлөгдсөн бол хэрэглэгчид notification илгээх
+      if (status !== previousStatus) {
+        try {
+          const user = await User.findById(request.userId);
+          if (user) {
+            const notification = new Notification({
+              userId: user._id,
+              technicianId: request.assignedTo || user._id,
+              serviceRequestId: request._id,
+              title: 'Засварын хүсэлтийн статус өөрчлөгдлөө',
+              message: `"${request.title}" засварын хүсэлтийн статус "${status}" болсон.`,
+              type: 'status_change'
+            });
+            await notification.save();
+            
+            // Socket.IO ашиглан real-time notification илгээх
+            const io = req.app.get('io');
+            if (io) {
+              const populatedNotification = await Notification.findById(notification._id)
+                .populate('technicianId', 'name specialization')
+                .populate('serviceRequestId', 'title type status');
+              io.to(`user_${user._id}`).emit('notification', populatedNotification);
+              console.log(`📤 Sent status change notification to user ${user._id}`);
+            }
+          }
+        } catch (notificationError) {
+          console.error('Error creating status change notification:', notificationError);
+        }
       }
     }
     // Засварчин томилогдох үед notification илгээх
@@ -162,6 +193,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 type: 'assignment'
               });
               await notification.save();
+              
+              // Socket.IO ашиглан real-time notification илгээх
+              const io = req.app.get('io');
+              if (io) {
+                const populatedNotification = await Notification.findById(notification._id)
+                  .populate('technicianId', 'name specialization')
+                  .populate('serviceRequestId', 'title type status');
+                io.to(`user_${technicianUser._id}`).emit('notification', populatedNotification);
+                console.log(`📤 Sent notification to user ${technicianUser._id}`);
+              }
             }
           }
         } catch (notificationError) {
